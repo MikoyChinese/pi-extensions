@@ -54,6 +54,8 @@ pi update git:github.com/MikoyChinese/pi-extensions
 ```text
 /remote ssh user@server.example.com -p 22
 /remote cd /srv/project
+/remote upload ./build/app.tar.gz releases/app.tar.gz
+/remote download logs/service.log ./downloads/service.log
 /remote status
 ```
 
@@ -65,7 +67,7 @@ pi update git:github.com/MikoyChinese/pi-extensions
 | 远程文件 / 命令 | `remote_read`、`remote_write`、`remote_edit`、`remote_bash` |
 | SSH 连接、目录、端口转发等管理 | `remote`，以及用户 `/remote` |
 
-例如告诉 pi：“用 `remote_read` 查看远端 README，再用 `remote_bash` 运行测试”。远程相对路径基于远程 cwd，绝对路径原样指向远端；`remote_*` 不会回退到本地。用 `/remote off` 断开连接。
+例如告诉 pi：“用 `remote_read` 查看远端 README，再用 `remote_bash` 运行测试”。远程相对路径基于远程 cwd，绝对路径原样指向远端；`remote_*` 不会回退到本地。文件复制使用 `/remote upload LOCAL_PATH REMOTE_PATH` 和 `/remote download REMOTE_PATH LOCAL_PATH`，数据直接走 SFTP，不经过模型上下文。用 `/remote off` 断开连接。
 
 修改版保留上游主机密钥确认、凭据缓存、会话恢复、服务器记忆、输出限额和端口转发。**`pi-simple-permissions` 的本地沙箱和审批不会自动覆盖 `remote_*` 或 `remote` 的 exec 操作。** 需要远程审批时，应使用识别这些名称及 `remote.action` 的独立策略。SSH 不再争用原生工具名，但任意第三方扩展之间的其他命令、界面或策略冲突仍需分别验证。
 

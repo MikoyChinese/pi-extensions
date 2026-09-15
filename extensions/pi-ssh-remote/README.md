@@ -11,6 +11,8 @@
 /remote cd /srv/project
 /remote status
 /remote exec --timeout 60 git status
+/remote upload ./build/app.tar.gz releases/app.tar.gz
+/remote download logs/service.log ./downloads/service.log
 /remote config forward 7860:127.0.0.1:7860
 /remote forward
 /remote unforward
@@ -25,6 +27,15 @@
 
 以上参数用于 `remote`。随后使用 `remote_read({"path":"README.md"})`、`remote_bash({"command":"git status"})` 等远程工具。`remote_edit` 的参数随宿主 pi 的 edit schema 提供；在验证版本中使用 `edits: [{oldText, newText}]`。
 
+本地与远端之间复制文件时，使用 `/remote upload LOCAL_PATH REMOTE_PATH`、`/remote download REMOTE_PATH LOCAL_PATH`，或让模型调用：
+
+```json
+{"action":"upload","localPath":"./build/app.tar.gz","remotePath":"releases/app.tar.gz"}
+{"action":"download","remotePath":"logs/service.log","localPath":"./downloads/service.log"}
+```
+
+文件直接通过 SFTP 传输，不进入模型上下文，支持二进制和大文件。`localPath` 的相对路径基于 pi 启动时的本地 cwd，`remotePath` 的相对路径基于远端 cwd；两者都支持绝对路径。路径含空格时，`/remote` 命令中需要加引号。当前只复制单个文件，不递归复制目录。
+
 ## 与原版的差异
 
 - 不覆盖 `read/write/edit/bash`，不拦截 `!` / `!!`，不修改本地工具激活列表。
@@ -32,6 +43,7 @@
 - `remote_*` 必须已有连接；断线时不会调用本地工具。连接中掉线保留上游自动重连逻辑。
 - 相对路径基于远端 cwd；绝对路径不再从本地工作区映射到远端工作区。`~` / `~/...` 参数会要求改用远端绝对路径或相对路径，避免被 pi 在本地展开。
 - 开启转发后远程工具仍指向远端；状态栏同时显示远端目标和转发端口。
+- `remote` 的 `upload/download` action 通过 SFTP 在本地与远端之间直接复制单个文件，保留原始字节。
 - 服务器记忆 JSON 和超限输出临时文件保存在本地，用本地 `read/edit/write` 管理；向 `remote_*` 传入相同路径也只会操作远端。
 - 忽略旧会话的隐式路由字段，保留端点、目录和转发恢复。
 

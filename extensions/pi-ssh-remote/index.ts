@@ -8,7 +8,7 @@
 
 import ssh2, { type Client as SshClient, type ClientChannel, type ConnectConfig, type SFTPWrapper } from "ssh2";
 import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, statSync, writeFileSync, writeSync } from "node:fs";
-import { dirname, isAbsolute, join, posix } from "node:path";
+import { dirname, isAbsolute, join, posix, resolve } from "node:path";
 import { createServer, type Server, type Socket } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { Type } from "typebox";
@@ -508,7 +508,7 @@ function memoryManagementPrompt(remote: RemoteState): string {
 }
 
 function remoteSystemPrompt(systemPrompt: string, localCwd: string, remote: RemoteState): string {
-  return `${systemPrompt}\n\nSSH endpoint: ${endpointDisplayLabel(remote)}. Remote working directory: ${remote.cwd}. Use remote_read, remote_write, remote_edit, and remote_bash explicitly for this server. Relative remote paths resolve against the remote working directory; absolute paths stay absolute on the server. Local read/write/edit/bash and !/!! commands still run locally in ${localCwd}. Use remote with action chdir for persistent remote directory changes. Port forwarding does not change tool targets.\n\n${memoryManagementPrompt(remote)}`;
+  return `${systemPrompt}\n\nSSH endpoint: ${endpointDisplayLabel(remote)}. Remote working directory: ${remote.cwd}. Use remote_read, remote_write, remote_edit, and remote_bash explicitly for this server. Relative remote paths resolve against the remote working directory; absolute paths stay absolute on the server. Local read/write/edit/bash and !/!! commands still run locally in ${localCwd}. Use remote with action upload or download to copy files directly between the local machine and this server without passing their contents through model context. Use remote with action chdir for persistent remote directory changes. Port forwarding does not change tool targets.\n\n${memoryManagementPrompt(remote)}`;
 }
 
 function serverMemoryContext(remote: RemoteState): string | undefined {
@@ -924,6 +924,14 @@ export default function sshRemoteExtension(pi: ExtensionAPI) {
   };
   const mapPath = remotePath;
 
+  const localPath = (path: string): string => {
+    const normalized = path.replace(/^@/, "");
+    if (normalized === "~" || normalized.startsWith("~/")) {
+      throw new Error("Use an absolute local path or a path relative to Pi's local cwd; ~ is not expanded by file tools.");
+    }
+    return resolve(localCwd, normalized);
+  };
+
   const serializeForward = (spec: ForwardSpec): string => `${spec.localPort}:${spec.remoteHost}:${spec.remotePort}`;
 
   const currentSessionRemoteState = (): SessionRemoteState => remote ? {
@@ -1306,6 +1314,28 @@ export default function sshRemoteExtension(pi: ExtensionAPI) {
     mkdir: async (path) => { await withReconnect((client) => execRemote(client, `mkdir -p -- ${quote(mapPath(path))}`)); },
   });
 
+  const transferFile = async (direction: "upload" | "download", localInput: string, remoteInput: string) => {
+    const local = localPath(localInput);
+    const target = remotePath(remoteInput);
+    if (direction === "upload") {
+      const source = statSync(local);
+      if (!source.isFile()) throw new Error(`Local upload source is not a regular file: ${local}`);
+      await withReconnect(async (client) => {
+        await execRemote(client, `mkdir -p -- ${quote(posix.dirname(target))}`);
+        await withSftp(client, (sftp) => new Promise<void>((resolveTransfer, reject) =>
+          sftp.fastPut(local, target, {}, (error) => error ? reject(error) : resolveTransfer())));
+      });
+      return { local, remote: target, bytes: source.size };
+    }
+
+    mkdirSync(dirname(local), { recursive: true });
+    await withReconnect((client) => withSftp(client, (sftp) => new Promise<void>((resolveTransfer, reject) =>
+      sftp.fastGet(target, local, {}, (error) => error ? reject(error) : resolveTransfer()))));
+    const downloaded = statSync(local);
+    if (!downloaded.isFile()) throw new Error(`Local download destination is not a regular file: ${local}`);
+    return { local, remote: target, bytes: downloaded.size };
+  };
+
   const remoteEditOps = (): EditOperations => {
     const read = remoteReadOps();
     const write = remoteWriteOps();
@@ -1389,24 +1419,27 @@ export default function sshRemoteExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "remote",
     label: "Remote",
-    description: "Connect, reconnect, annotate endpoints, locate server-specific memory, change the persistent remote working directory, inspect, forward ports, run remote SSH commands, or disconnect the configured SSH environment. Server memory is managed as JSON entries with Pi's read, write, and edit tools. Connections support SSH agent, password, or an explicit local private key with -i. Exec output is streamed to bounded buffers; model output defaults to the last 200 lines or 8KB, while complete oversized output is saved locally. Passwords and key passphrases are never accepted as arguments and are cached only in process memory.",
-    promptSnippet: "Control the configured remote SSH connection, endpoint note and memory location, working directory, and local port forwarding",
+    description: "Connect, reconnect, transfer files, annotate endpoints, locate server-specific memory, change the persistent remote working directory, inspect, forward ports, run remote SSH commands, or disconnect the configured SSH environment. Upload and download copy files directly over SFTP without placing their contents in model context. Server memory is managed as JSON entries with Pi's read, write, and edit tools. Connections support SSH agent, password, or an explicit local private key with -i. Exec output is streamed to bounded buffers; model output defaults to the last 200 lines or 8KB, while complete oversized output is saved locally. Passwords and key passphrases are never accepted as arguments and are cached only in process memory.",
+    promptSnippet: "Control the configured remote SSH connection, file transfer, endpoint note and memory location, working directory, and local port forwarding",
     promptGuidelines: [
       "Use remote when the user asks the agent to enter, reconnect, inspect, or leave a remote SSH environment.",
       "Use remote with action chdir when the user asks to change the remote working directory; do not emulate a persistent directory change with action exec and a one-command cwd.",
       "Use remote with action memory to locate and inspect the current server-memory JSON file, then use read/edit/write on that exact local path for entry-level changes.",
+      "Use remote with action upload or download for binary files, large files, or exact local/remote copies; localPath is local and remotePath is always on the SSH server.",
       "Delete a server-memory JSON entry only after an explicit user request to delete, remove, or forget it. Read the file first, identify the exact entry id, and remove only that object with edit; ask the user if the target is ambiguous and never infer deletion from an update request.",
       `Always set timeout for remote exec commands; it defaults to ${DEFAULT_REMOTE_TIMEOUT_SECONDS} seconds when omitted.`,
       "Keep remote exec output narrow with tail, sed, rg limits, or similarly bounded commands; never cat large logs or emit broad file listings.",
       "Use remote with action disconnect after remote work when the user asks to return to the local environment.",
     ],
     parameters: Type.Object({
-      action: StringEnum(["connect", "reconnect", "status", "disconnect", "forget", "forward", "unforward", "exec", "chdir", "note", "memory"] as const),
+      action: StringEnum(["connect", "reconnect", "status", "disconnect", "forget", "forward", "unforward", "exec", "chdir", "upload", "download", "note", "memory"] as const),
       command: Type.Optional(Type.String({ description: "SSH command for connect, such as ssh root@host -p 22 or ssh -i ~/.ssh/id_ed25519 root@host; optionally selects the endpoint for note or memory" })),
       note: Type.Optional(Type.String({ description: "Endpoint note for the note action; omit or use an empty string to clear it" })),
       cwd: Type.Optional(Type.String({ description: "Remote working directory; required for chdir, and a one-command override for exec" })),
       forwards: Type.Optional(Type.String({ description: "Space-separated LOCAL_PORT:REMOTE_HOST:REMOTE_PORT mappings; defaults to ssh-remote-config.json" })),
       remoteCommand: Type.Optional(Type.String({ description: "Remote shell command for the exec action" })),
+      localPath: Type.Optional(Type.String({ description: "Local source path for upload or local destination path for download; relative paths use Pi's local cwd" })),
+      remotePath: Type.Optional(Type.String({ description: "Remote destination path for upload or remote source path for download; relative paths use the remote cwd" })),
       timeout: Type.Optional(Type.Number({ minimum: 1, maximum: MAX_REMOTE_TIMEOUT_SECONDS, description: `Remote command timeout in seconds; defaults to ${DEFAULT_REMOTE_TIMEOUT_SECONDS}` })),
       displayLines: Type.Optional(Type.Integer({ minimum: 1, maximum: MAX_DISPLAY_LINES, description: "Collapsed visual lines for exec output; defaults to the /remote config display-lines setting (5 initially), maximum 50" })),
     }),
@@ -1447,6 +1480,16 @@ export default function sshRemoteExtension(pi: ExtensionAPI) {
         if (!params.cwd) throw new Error("cwd is required for chdir");
         const resolved = await changeRemoteCwd(params.cwd, ctx);
         return { content: [{ type: "text", text: `Remote working directory: ${resolved}` }], details: { connected: true, cwd: resolved } };
+      }
+      if (params.action === "upload" || params.action === "download") {
+        if (!params.localPath) throw new Error(`localPath is required for ${params.action}`);
+        if (!params.remotePath) throw new Error(`remotePath is required for ${params.action}`);
+        await ensureConnected(ctx);
+        const transferred = await transferFile(params.action, params.localPath, params.remotePath);
+        const text = params.action === "upload"
+          ? `Uploaded ${formatSize(transferred.bytes)}: ${transferred.local} -> ${transferred.remote}`
+          : `Downloaded ${formatSize(transferred.bytes)}: ${transferred.remote} -> ${transferred.local}`;
+        return { content: [{ type: "text", text }], details: { action: params.action, ...transferred } };
       }
       if (params.action === "note" || params.action === "memory") {
         const command = params.command || lastCommand || activeSshCommand();
@@ -1520,7 +1563,7 @@ export default function sshRemoteExtension(pi: ExtensionAPI) {
   });
 
   pi.registerCommand("remote", {
-    description: "Connect over SSH and manage endpoints: /remote | ssh USER@HOST [-p PORT] [-i KEY] | memory | config | use USER@HOST:PORT | config note TEXT|--clear | config cwd PATH | config display-lines N | config read-max-lines|read-max-bytes|exec-max-lines|exec-max-bytes|turn-max-bytes N | forward [MAPPINGS] | unforward | exec [--timeout SECONDS] [--lines N] COMMAND | cd PATH | status | reload | off | forget",
+    description: "Connect over SSH and manage endpoints: /remote | ssh USER@HOST [-p PORT] [-i KEY] | upload LOCAL_PATH REMOTE_PATH | download REMOTE_PATH LOCAL_PATH | memory | config | use USER@HOST:PORT | config note TEXT|--clear | config cwd PATH | config display-lines N | config read-max-lines|read-max-bytes|exec-max-lines|exec-max-bytes|turn-max-bytes N | forward [MAPPINGS] | unforward | exec [--timeout SECONDS] [--lines N] COMMAND | cd PATH | status | reload | off | forget",
     handler: async (args, ctx) => {
       const input = args.trim().replace(/^\/?remote(?:\s+|$)/i, "").trim();
       const action = input.toLowerCase();
@@ -1669,6 +1712,24 @@ export default function sshRemoteExtension(pi: ExtensionAPI) {
         await stopForwards();
         persistSessionRemoteState();
         ctx.ui.notify("Closed all extension-managed SSH remote port forwards", "info");
+        return;
+      }
+      if (/^(upload|download)(?:\s+|$)/i.test(input)) {
+        try {
+          const words = shellWords(input);
+          const direction = words[0]!.toLowerCase() as "upload" | "download";
+          if (words.length !== 3) {
+            throw new Error(direction === "upload"
+              ? "Use /remote upload LOCAL_PATH REMOTE_PATH"
+              : "Use /remote download REMOTE_PATH LOCAL_PATH");
+          }
+          await ensureConnected(ctx);
+          const [localInput, remoteInput] = direction === "upload" ? [words[1]!, words[2]!] : [words[2]!, words[1]!];
+          const transferred = await transferFile(direction, localInput, remoteInput);
+          ctx.ui.notify(direction === "upload"
+            ? `Uploaded ${formatSize(transferred.bytes)}: ${transferred.local} -> ${transferred.remote}`
+            : `Downloaded ${formatSize(transferred.bytes)}: ${transferred.remote} -> ${transferred.local}`, "info");
+        } catch (error) { ctx.ui.notify(`SSH file transfer failed: ${(error as Error).message}`, "error"); }
         return;
       }
       if (/^exec\s+/i.test(input)) {

@@ -26,12 +26,13 @@ function harness() {
     on: (n, h) => handlers.set(n, h),
     appendEntry() {},
   });
+  const notifications = [];
   const ctx = {
-    ui: { confirm: async () => true, notify() {}, setStatus() {}, theme: { fg: (_, s) => s } },
+    ui: { confirm: async () => true, notify: (message, level) => notifications.push({ message, level }), setStatus() {}, theme: { fg: (_, s) => s } },
     sessionManager: { getBranch: () => [] },
   };
   const call = (name, params) => tools.get(name).execute('test', params, undefined, undefined, ctx);
-  return { tools, handlers, commands, ctx, call };
+  return { tools, handlers, commands, notifications, ctx, call };
 }
 
 test('register only explicit remote tools; do not intercept local shell or tool events', () => {
@@ -49,7 +50,9 @@ test('disconnected remote tools never fall back to local files or commands', asy
     ['remote_read', { path }], ['remote_write', { path, content: 'changed' }],
     ['remote_edit', { path, edits: [{ oldText: 'unchanged', newText: 'changed' }] }],
     ['remote_bash', { command: 'echo should-not-execute' }],
-  ]) await assert.rejects(async () => h.call(name, params), /disconnected/);
+    ['remote', { action: 'upload', localPath: path, remotePath: 'sentinel' }],
+    ['remote', { action: 'download', localPath: path, remotePath: 'sentinel' }],
+  ]) await assert.rejects(async () => h.call(name, params), /disconnected|No SSH endpoint configured/);
   assert.equal(readFileSync(path, 'utf8'), 'unchanged');
 });
 
@@ -73,6 +76,26 @@ test('connected tools use remote paths; forwarding and disconnect preserve expli
     assert.match(read.content[0].text, /remote text/);
     await h.call('remote_bash', { command: 'pwd' });
     assert.match(transport.state.commands.at(-1), /cd -- '\/srv\/project'/);
+
+    const binary = Buffer.from([0x00, 0xff, 0x41, 0x0a]);
+    const uploadPath = join(agentDir, 'upload source.bin');
+    const downloadPath = join(agentDir, 'nested download', 'result.bin');
+    writeFileSync(uploadPath, binary);
+    const uploaded = await h.call('remote', { action: 'upload', localPath: uploadPath, remotePath: 'artifacts/blob.bin' });
+    assert.deepEqual(transport.state.files.get('/srv/project/artifacts/blob.bin'), binary);
+    assert.equal(uploaded.details.bytes, binary.length);
+    const downloaded = await h.call('remote', { action: 'download', remotePath: 'artifacts/blob.bin', localPath: downloadPath });
+    assert.deepEqual(readFileSync(downloadPath), binary);
+    assert.equal(downloaded.details.bytes, binary.length);
+
+    const commandUploadPath = join(agentDir, 'command source.bin');
+    const commandDownloadPath = join(agentDir, 'command result.bin');
+    writeFileSync(commandUploadPath, binary);
+    await h.commands.get('remote').handler(`upload "${commandUploadPath}" "command files/blob.bin"`, h.ctx);
+    assert.deepEqual(transport.state.files.get('/srv/project/command files/blob.bin'), binary);
+    await h.commands.get('remote').handler(`download "command files/blob.bin" "${commandDownloadPath}"`, h.ctx);
+    assert.deepEqual(readFileSync(commandDownloadPath), binary);
+    assert.match(h.notifications.at(-1).message, /Downloaded 4B/);
     const prompt = `Original instructions\nCurrent working directory: ${process.cwd()}`;
     assert.ok(h.handlers.get('before_agent_start')({ systemPrompt: prompt }).systemPrompt.startsWith(prompt));
     await assert.rejects(async () => h.call('remote_write', { path: '~/file', content: '' }), /absolute remote path/);
