@@ -1,0 +1,91 @@
+{
+  "name": "@mikoychinese/pi-extensions",
+  "version": "0.1.0",
+  "description": "Mikoy 的 pi 扩展合集，包含显式 remote_* SSH 工具。",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MikoyChinese/pi-extensions.git"
+  },
+  "keywords": [
+    "pi-package"
+  ],
+  "files": [
+    "extensions/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@juicesharp/rpiv-ask-user-question": "2.10.1",
+    "@tintinweb/pi-tasks": "0.9.0",
+    "pi-cc-extensions": "0.8.71",
+    "pi-mcp-adapter": "2.33.0",
+    "pi-simple-permissions": "1.0.3",
+    "pi-smart-fetch": "0.3.17",
+    "pi-smart-web-search": "0.4.0",
+    "ssh2": "1.17.0"
+  },
+  "bundledDependencies": [
+    "@juicesharp/rpiv-ask-user-question",
+    "@tintinweb/pi-tasks",
+    "pi-cc-extensions",
+    "pi-mcp-adapter",
+    "pi-simple-permissions",
+    "pi-smart-fetch",
+    "pi-smart-web-search"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "jiti": "^2.7.0",
+    "@earendil-works/pi-coding-agent": "0.84.1",
+    "@earendil-works/pi-ai": "0.84.1",
+    "@earendil-works/pi-tui": "0.84.1",
+    "typebox": "^1.1.34"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/rpiv-ask-user-question/index.ts",
+      "./extensions/pi-tasks/index.ts",
+      "./extensions/pi-cc-extensions/index.ts",
+      "./extensions/pi-mcp-adapter/index.ts",
+      "./extensions/pi-simple-permissions/index.ts",
+      "./extensions/pi-smart-fetch/index.ts",
+      "./extensions/pi-smart-web-search/index.ts",
+      "./extensions/statusline/statusline.ts",
+      "./extensions/pi-ssh-remote/index.ts"
+    ],
+    "themes": [
+      "./node_modules/pi-cc-extensions/themes/cc-dark.json",
+      "./node_modules/pi-cc-extensions/themes/cc-light.json"
+    ],
+    "skills": [
+      "./node_modules/pi-mcp-adapter/skills"
+    ]
+  }
+}
