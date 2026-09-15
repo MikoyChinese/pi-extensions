@@ -1,6 +1,6 @@
 # pi-ssh-remote：显式远程工具版
 
-基于 [petrichor20211/pi-ssh-remote](https://github.com/petrichor20211/pi-ssh-remote) 修改。随根目录合集安装；此目录的运行依赖由根 `package.json` 管理。
+基于 [petrichor20211/pi-ssh-remote](https://github.com/petrichor20211/pi-ssh-remote) 修改。通过 `pi install npm:@mikoychinese/pi-ssh-remote` 安装；此目录是可独立发布的 npm workspace，运行依赖由本目录 `package.json` 管理。
 
 仅注册 `remote`、`remote_read`、`remote_write`、`remote_edit`、`remote_bash` 五个工具和 `/remote` 命令。
 

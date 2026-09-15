@@ -20,7 +20,7 @@
  *
  * git 部分与原脚本逐条一致（git -C <cwd> ...），并监听 .git 变化实时刷新。
  *
- * 安装位置：~/.pi/agent/extensions/statusline.ts（全局自动加载，无需配置）
+ * 发布包：@mikoychinese/pi-statusline（通过 pi package manifest 加载）
  * 配色/分段/格式化均与原脚本的 ANSI 256 色序列一一对应。
  */
 

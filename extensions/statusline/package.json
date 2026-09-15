@@ -1,0 +1,45 @@
+{
+  "name": "@mikoychinese/pi-statusline",
+  "version": "0.1.0",
+  "description": "A tested Pi status line showing model, context, directory, and Git state.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MikoyChinese/pi-extensions.git",
+    "directory": "extensions/statusline"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "statusline"
+  ],
+  "files": [
+    "statusline.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    }
+  },
+  "pi": {
+    "extensions": [
+      "./statusline.ts"
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+name: Publish npm package
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Workspace to publish
+        required: true
+        type: choice
+        options:
+          - pi-statusline
+          - pi-ssh-remote
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish-${{ inputs.package }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run compatibility tests
+        run: npm test
+
+      - name: Check package contents
+        run: npm pack --workspace "@mikoychinese/${{ inputs.package }}" --dry-run
+
+      - name: Publish package
+        run: npm publish --workspace "@mikoychinese/${{ inputs.package }}" --access public

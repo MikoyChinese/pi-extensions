@@ -1,0 +1,60 @@
+{
+  "name": "@mikoychinese/pi-ssh-remote",
+  "version": "0.1.0",
+  "description": "A tested Pi SSH extension with explicit remote_* tools and no local-tool overrides.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MikoyChinese/pi-extensions.git",
+    "directory": "extensions/pi-ssh-remote"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "ssh",
+    "remote"
+  ],
+  "files": [
+    "index.ts",
+    "README.md",
+    "UPSTREAM.md",
+    "UPSTREAM-README.md",
+    "UPSTREAM-CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "ssh2": "1.17.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
