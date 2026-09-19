@@ -15,11 +15,11 @@ const packageManifests = [
   'node_modules/@tintinweb/pi-tasks/package.json',
   'node_modules/pi-cc-extensions/package.json',
   'node_modules/pi-mcp-adapter/package.json',
-  'node_modules/pi-simple-permissions/package.json',
   'node_modules/pi-smart-fetch/package.json',
   'node_modules/pi-smart-web-search/package.json',
   'extensions/statusline/package.json',
   'extensions/pi-ssh-remote/package.json',
+  'extensions/pi-simple-permissions/package.json',
 ];
 
 function readPiPackage(relativeManifest) {

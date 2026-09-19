@@ -10,6 +10,7 @@ on:
         options:
           - pi-statusline
           - pi-ssh-remote
+          - pi-simple-permissions
 
 permissions:
   contents: read

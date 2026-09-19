@@ -1,6 +1,6 @@
 # Pi 扩展兼容性集合
 
-这个仓库维护一组经过联合加载和工具重名测试的 pi 插件。七个上游插件直接从各自的 npm 包安装；本仓库只发布自有的 statusline 和修改版 pi-ssh-remote。一个 Git 仓库通过 npm workspaces 维护这两个独立包。
+这个仓库维护一组经过联合加载和工具重名测试的 pi 插件。六个上游插件直接从各自的 npm 包安装；本仓库发布自有的 statusline，以及 fork 后修改的 pi-ssh-remote 和 pi-simple-permissions。一个 Git 仓库通过 npm workspaces 维护这三个独立包。
 
 ## 安装
 
@@ -11,11 +11,11 @@ pi install npm:@juicesharp/rpiv-ask-user-question
 pi install npm:@tintinweb/pi-tasks
 pi install npm:pi-cc-extensions
 pi install npm:pi-mcp-adapter
-pi install npm:pi-simple-permissions
 pi install npm:pi-smart-fetch
 pi install npm:pi-smart-web-search
 pi install npm:@mikoychinese/pi-statusline
 pi install npm:@mikoychinese/pi-ssh-remote
+pi install npm:@mikoychinese/pi-simple-permissions
 ```
 
 安装后重启 pi 或执行 `/reload`。每个插件都是独立的 package source，因此 `pi list` 会分别显示九项，也可以通过 `pi config` 单独启用或禁用。
@@ -38,11 +38,11 @@ pi update --extensions
 | @tintinweb/pi-tasks | 0.9.0 | 上游 npm |
 | pi-cc-extensions | 0.8.71 | 上游 npm |
 | pi-mcp-adapter | 2.33.0 | 上游 npm |
-| pi-simple-permissions | 1.0.3 | 上游 npm |
 | pi-smart-fetch | 0.3.17 | 上游 npm |
 | pi-smart-web-search | 0.4.0 | 上游 npm |
 | @mikoychinese/pi-statusline | 0.1.0 | 本仓库 |
 | @mikoychinese/pi-ssh-remote | 0.1.0 | 本仓库 |
+| @mikoychinese/pi-simple-permissions | 0.1.0 | 本仓库（fork 自上游 pi-simple-permissions 1.0.3） |
 
 上游包发生冲突时，可以只把受影响的插件适配并发布到 `@mikoychinese` scope，然后替换对应安装源；其他插件继续直接跟随上游。
 
@@ -81,12 +81,13 @@ npm run pack:check
 维护约定：
 
 - 根 package 是私有兼容性测试工程，不作为 Pi Package 发布。
-- 七个上游包位于根 `devDependencies`，精确版本和传递依赖记录在 `package-lock.json`。
-- `extensions/statusline` 与 `extensions/pi-ssh-remote` 是可独立发布的 npm workspaces，各自拥有 `package.json` 和 `pi` manifest。
+- 六个上游包位于根 `devDependencies`，精确版本和传递依赖记录在 `package-lock.json`。
+- `extensions/statusline`、`extensions/pi-ssh-remote` 与 `extensions/pi-simple-permissions` 是可独立发布的 npm workspaces，各自拥有 `package.json` 和 `pi` manifest。
 - 升级兼容性基线时更新依赖和锁文件，检查上游资源入口，再运行 `npm test`。
 - SSH 上游提交和本地差异见 [UPSTREAM.md](extensions/pi-ssh-remote/UPSTREAM.md)。同步时保留显式工具语义，并运行远程回归测试。
+- 权限插件的上游基准与 Git 判定差异见 [UPSTREAM.md](extensions/pi-simple-permissions/UPSTREAM.md)。它用 shell 词法器加参数级白名单替换上游的正则判定，修误报时不要退回正则。
 - SSH 测试使用内存传输模拟，不需要服务器凭据；真实服务器的认证、SFTP 和端口转发仍需按实际环境验证。
-- 发布前通过 `npm run pack:check` 检查两个 tarball 的文件清单、依赖和体积。
+- 发布前通过 `npm run pack:check` 检查三个 tarball 的文件清单、依赖和体积。
 
 ## 许可
 

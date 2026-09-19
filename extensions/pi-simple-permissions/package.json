@@ -1,0 +1,53 @@
+{
+  "name": "@mikoychinese/pi-simple-permissions",
+  "version": "0.1.0",
+  "description": "Sandboxed bash execution with parameter-level Git approval, forked from pi-simple-permissions.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MikoyChinese/pi-extensions.git",
+    "directory": "extensions/pi-simple-permissions"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "pi-package",
+    "security",
+    "permissions",
+    "sandbox"
+  ],
+  "files": [
+    "index.ts",
+    "git-policy.ts",
+    "README.md",
+    "UPSTREAM.md",
+    "UPSTREAM-README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
