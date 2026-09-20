@@ -17,7 +17,7 @@ type PermissionMode = "default" | "auto" | "yolo";
 interface BashParams {
   command: string;
   timeout?: number;
-  sandbox_permissions?: "require_escalated";
+  sandbox_permissions?: "use_sandbox" | "require_escalated";
   escalation_reason?: string;
 }
 
@@ -97,6 +97,34 @@ function createSandboxOperations(): BashOperations {
       return local.exec(sandboxCommand(command, cwd), cwd, options);
     },
   };
+}
+
+export function prepareBashArguments(input: unknown): unknown {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input;
+
+  const args = { ...(input as Record<string, unknown>) };
+  if (
+    args.sandbox_permissions === undefined ||
+    args.sandbox_permissions === null ||
+    args.sandbox_permissions === "" ||
+    args.sandbox_permissions === "null"
+  ) {
+    args.sandbox_permissions = "use_sandbox";
+  }
+
+  if (
+    args.escalation_reason === null ||
+    args.escalation_reason === "" ||
+    args.escalation_reason === "null"
+  ) {
+    delete args.escalation_reason;
+  }
+
+  if (args.timeout === null || args.timeout === "" || args.timeout === "null") {
+    delete args.timeout;
+  }
+
+  return args;
 }
 
 async function approve(
@@ -182,7 +210,7 @@ export default function simplePermissions(pi: ExtensionAPI): void {
     if (mode === "yolo") {
       boundaryText = "\n\n## Permission boundary\n\nThe active permission mode is YOLO. There are no restrictions. You have full system access without manual approval.";
     } else {
-      boundaryText = `\n\n## Permission boundary\n\nThe active permission mode is ${MODE_LABELS[mode]}. Network access and network-search tools are allowed in every mode. In Auto mode, bash is sandboxed so only the current working directory and /tmp are writable. For a necessary write outside those roots, call bash with sandbox_permissions=\"require_escalated\" and a concise escalation_reason. Git: read-only inspection (status, log, diff, show, branch --show-current, ls-files, ls-remote, blame, ...) runs without approval; everything else, including add, commit, push, fetch, clone, init, reset, merge, rebase, checkout, tag -d, branch -D, stash drop, and config or remote writes, requires user approval.`;
+      boundaryText = `\n\n## Permission boundary\n\nThe active permission mode is ${MODE_LABELS[mode]}. Network access and network-search tools are allowed in every mode. In Auto mode, bash is sandboxed so only the current working directory and /tmp are writable. Use sandbox_permissions=\"use_sandbox\" for normal bash calls. For a necessary write outside those roots, use sandbox_permissions=\"require_escalated\" and a concise escalation_reason. Git: read-only inspection (status, log, diff, show, branch --show-current, ls-files, ls-remote, blame, ...) runs without approval; everything else, including add, commit, push, fetch, clone, init, reset, merge, rebase, checkout, tag -d, branch -D, stash drop, and config or remote writes, requires user approval.`;
     }
     return { systemPrompt: `${event.systemPrompt}${boundaryText}` };
   });
@@ -218,8 +246,8 @@ export default function simplePermissions(pi: ExtensionAPI): void {
   const bashParameters = Type.Object({
     command: Type.String({ description: "Bash command to execute" }),
     timeout: Type.Optional(Type.Number({ description: "Timeout in seconds" })),
-    sandbox_permissions: Type.Optional(StringEnum(["require_escalated"] as const, {
-      description: "Request execution outside the Auto filesystem sandbox",
+    sandbox_permissions: Type.Optional(StringEnum(["use_sandbox", "require_escalated"] as const, {
+      description: "Use the Auto filesystem sandbox, or request execution outside it",
     })),
     escalation_reason: Type.Optional(Type.String({
       maxLength: 100,
@@ -233,7 +261,8 @@ export default function simplePermissions(pi: ExtensionAPI): void {
     label: "bash (permissioned)",
     executionMode: "sequential",
     parameters: bashParameters,
-    description: `${template.description}\n\nIn Auto mode, bash can write only inside the current working directory and /tmp. Use sandbox_permissions=\"require_escalated\" only when a necessary operation must write elsewhere. Network access is unrestricted. Read-only Git inspection (status, log, diff, show, branch --show-current, ...) runs without approval; any state-changing Git command (add, commit, push, fetch, clone, reset, merge, rebase, checkout, ...) requires approval.`,
+    prepareArguments: prepareBashArguments,
+    description: `${template.description}\n\nIn Auto mode, use sandbox_permissions=\"use_sandbox\" for normal commands; bash can then write only inside the current working directory and /tmp. Use sandbox_permissions=\"require_escalated\" only when a necessary operation must write elsewhere. Network access is unrestricted. Read-only Git inspection (status, log, diff, show, branch --show-current, ...) runs without approval; any state-changing Git command (add, commit, push, fetch, clone, reset, merge, rebase, checkout, ...) requires approval.`,
     async execute(toolCallId, params: BashParams, signal, onUpdate, ctx) {
       const callMode = mode;
       const command = params.command.trim();

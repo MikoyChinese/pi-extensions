@@ -5,17 +5,18 @@
 <a name="english"></a>
 ## English
 
-A fork of [pi-simple-permissions](https://github.com/Lytherion/pi-simple-permissions) that replaces the Git approval heuristic with a shell-lexer plus parameter-level allowlist.
+A fork of [pi-simple-permissions](https://github.com/Lytherion/pi-simple-permissions) that replaces the Git approval heuristic with a shell-lexer plus parameter-level allowlist and hardens bash permission arguments against null-like model output.
 
 Upstream decided whether a Git command needed approval by running one regular expression over the whole command string. That produced heavy false positives: replaying 227 real commands from local sessions, upstream prompted 134 times, 103 of which were pure reads or had nothing to do with Git (23% precision).
 
-This fork changes only that one decision. Everything else — the three permission modes, the `bwrap` sandbox, `write`/`edit` path checks, `/permission`, `Alt+M`, session persistence — is unchanged.
+This fork changes the Git approval decision and adds defensive normalization for bash permission arguments. The three permission modes, the `bwrap` sandbox, `write`/`edit` path checks, `/permission`, `Alt+M`, and session persistence otherwise retain the upstream behavior.
 
 ### What changed
 
 - Deleted upstream `READ_ONLY_GIT`, `gitSubcommands`, `mutatesGit`.
 - Added `git-policy.ts`, exporting a signature-compatible `mutatesGit(command)`.
 - `index.ts` imports `mutatesGit` from `./git-policy.ts` and states the Git red lines explicitly in its prompt.
+- Added an explicit `use_sandbox` bash permission value and a `prepareArguments()` compatibility shim. Missing, `null`, `"null"`, and empty permission values safely normalize to `use_sandbox`; unknown values still fail schema validation.
 
 `git-policy.ts` does two things:
 
@@ -39,17 +40,18 @@ Requires `bubblewrap` (`bwrap`) for Auto mode. See [UPSTREAM.md](UPSTREAM.md) fo
 <a name="中文"></a>
 ## 中文
 
-这是 [pi-simple-permissions](https://github.com/Lytherion/pi-simple-permissions) 的修改版：把 Git 审批的判定方式从「一条正则扫整条命令」换成「shell 词法器 + 参数级白名单」。
+这是 [pi-simple-permissions](https://github.com/Lytherion/pi-simple-permissions) 的修改版：用「shell 词法器 + 参数级白名单」替换 Git 审批启发式规则，并增强 bash 权限参数对模型空值输出的兼容性。
 
 上游用一条正则扫描整条命令字符串来判断 Git 操作是否需要审批，误报率很高：回放本地会话里 227 条真实命令，上游弹框 134 次，其中 103 次是纯只读或与 Git 无关的命令（精确率 23%）。
 
-本版只替换这一个判定环节。其余行为完全保留：三档权限模式、`bwrap` 沙箱、`write`/`edit` 路径检查、`/permission` 命令、`Alt+M` 快捷键、会话状态持久化。
+本版修改 Git 审批判定，并为 bash 权限参数增加防御性归一化。三档权限模式、`bwrap` 沙箱、`write`/`edit` 路径检查、`/permission` 命令、`Alt+M` 快捷键和会话状态持久化仍保留上游行为。
 
 ### 改动内容
 
 - 删除上游的 `READ_ONLY_GIT`、`gitSubcommands`、`mutatesGit`。
 - 新增 `git-policy.ts`，导出签名完全兼容的 `mutatesGit(command)`。
 - `index.ts` 从 `./git-policy.ts` 导入 `mutatesGit`，并在提示词中显式列出 Git 红线。
+- 新增明确的 `use_sandbox` bash 权限值和 `prepareArguments()` 兼容层。缺省、`null`、`"null"` 和空权限值会安全归一化为 `use_sandbox`，其他未知值仍无法通过 schema 校验。
 
 `git-policy.ts` 做两件事：
 

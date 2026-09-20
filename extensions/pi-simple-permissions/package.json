@@ -1,6 +1,6 @@
 {
   "name": "@mikoychinese/pi-simple-permissions",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Sandboxed bash execution with parameter-level Git approval, forked from pi-simple-permissions.",
   "type": "module",
   "license": "MIT",

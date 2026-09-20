@@ -10,13 +10,14 @@
 
 ## 本地修改
 
-上游用一条正则扫描整条命令字符串来判断 Git 操作是否需要审批，误报率很高：实测 227 条真实历史命令中，上游弹框 134 次，其中 103 次是纯只读或与 Git 无关的命令（精确率 23%）。本地实现只替换这一个判定环节，其余行为完全保留。
+上游用一条正则扫描整条命令字符串来判断 Git 操作是否需要审批，误报率很高：实测 227 条真实历史命令中，上游弹框 134 次，其中 103 次是纯只读或与 Git 无关的命令（精确率 23%）。本地实现替换该判定环节，并增加 bash 权限参数兼容层；其余行为保留上游实现。
 
-改动共三处：
+改动共四处：
 
 1. 删除上游的 `READ_ONLY_GIT`、`gitSubcommands`、`mutatesGit` 三个定义。
 2. 新增 `git-policy.ts`，导出签名完全兼容的 `mutatesGit(command)`。
 3. `index.ts` 从 `./git-policy.ts` 导入 `mutatesGit`，并把提示词中「Mutating Git commands」一句改为显式列出红线。
+4. bash 权限 schema 新增明确的 `use_sandbox` 值，并通过 `prepareArguments()` 将缺省、`null`、`"null"` 和空值安全归一化到沙箱模式；未知权限值仍由 schema 拒绝。
 
 `git-policy.ts` 内部：
 

@@ -42,7 +42,7 @@ pi update --extensions
 | pi-smart-web-search | 0.4.0 | 上游 npm |
 | @mikoychinese/pi-statusline | 0.1.0 | 本仓库 |
 | @mikoychinese/pi-ssh-remote | 0.1.0 | 本仓库 |
-| @mikoychinese/pi-simple-permissions | 0.1.0 | 本仓库（fork 自上游 pi-simple-permissions 1.0.3） |
+| @mikoychinese/pi-simple-permissions | 0.1.1 | 本仓库（fork 自上游 pi-simple-permissions 1.0.3） |
 
 上游包发生冲突时，可以只把受影响的插件适配并发布到 `@mikoychinese` scope，然后替换对应安装源；其他插件继续直接跟随上游。
 
